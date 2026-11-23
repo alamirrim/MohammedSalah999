@@ -16,6 +16,7 @@ on:
     paths:
       - "stories/**"
       - "shortsmaker/**"
+      - "backgrounds/sources.txt"
       - ".github/workflows/render.yml"
 
 jobs:
