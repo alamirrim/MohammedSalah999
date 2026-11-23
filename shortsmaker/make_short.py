@@ -34,6 +34,22 @@ ROOT = Path(__file__).resolve().parent.parent
 FONT_DIR = ROOT / "assets" / "fonts"
 FONT_NAME = "Inter Black"
 DEFAULT_VOICE = "en-US-AndrewMultilingualNeural"  # warm, natural male narrator
+# genre -> voice, so the channel doesn't sound like one template on repeat
+GENRE_VOICES = [
+    ({"scary stories", "horror story", "creepy"}, "en-US-ChristopherNeural"),
+    ({"wholesome", "emotional", "faith in humanity"}, "en-US-AvaMultilingualNeural"),
+    ({"revenge", "karma", "entitled people", "work stories", "office"}, "en-US-BrianMultilingualNeural"),
+]
+
+
+def voice_for(story):
+    if story.get("voice"):
+        return story["voice"]
+    tags = {t.lower() for t in story.get("tags", [])}
+    for genre_tags, voice in GENRE_VOICES:
+        if tags & genre_tags:
+            return voice
+    return DEFAULT_VOICE
 DEFAULT_RATE = "+12%"  # slightly fast narration keeps retention up
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm"}
 AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".ogg"}
@@ -273,6 +289,78 @@ def render_balls(duration, W, H, out_path, fps=30, seed=None):
     print("  background: generated bouncing-ball simulation")
 
 
+def render_plinko(duration, W, H, out_path, fps=30, seed=None):
+    """Original 'marble drop' sim: neon marbles fall through a peg board and pile up."""
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFilter
+    import colorsys
+
+    rng = random.Random(seed)
+    w, h = W // 2, H // 2
+    hue0 = rng.random()
+
+    def col(hh):
+        r, g, b = colorsys.hsv_to_rgb(hh % 1, 0.85, 1)
+        return int(r * 255), int(g * 255), int(b * 255)
+
+    gap = w / 9
+    pegs = []
+    for row in range(int(h * 0.62 / gap)):
+        y = h * 0.16 + row * gap * 0.9
+        off = gap / 2 if row % 2 else 0
+        for i in range(10):
+            x = off + i * gap
+            if 4 < x < w - 4:
+                pegs.append((x, y))
+    peg_r, mr = 4.0, 7.0
+    marbles = []
+    proc = subprocess.Popen(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "rawvideo",
+         "-pix_fmt", "rgb24", "-s", f"{w}x{h}", "-r", str(fps), "-i", "-",
+         "-vf", f"scale={W}:{H}:flags=bicubic", "-c:v", "libx264", "-preset", "veryfast",
+         "-crf", "20", "-pix_fmt", "yuv420p", str(out_path)],
+        stdin=subprocess.PIPE)
+    trail = Image.new("RGB", (w, h), (8, 8, 14))
+    fade = Image.new("RGB", (w, h), (8, 8, 14))
+    floor = h * 0.95
+    for f in range(int(duration * fps) + fps):
+        if f % 4 == 0 and len(marbles) < 160:
+            marbles.append({"x": w / 2 + rng.uniform(-gap, gap), "y": h * 0.05, "vx": rng.uniform(-1, 1),
+                            "vy": 0.0, "hue": hue0 + f / (fps * 15), "rest": False})
+        trail = Image.blend(trail, fade, 0.25)
+        d = ImageDraw.Draw(trail)
+        for x, y in pegs:
+            d.ellipse([x - peg_r, y - peg_r, x + peg_r, y + peg_r], fill=(200, 200, 230))
+        for m in marbles:
+            if not m["rest"]:
+                m["vy"] += 0.35
+                m["x"] += m["vx"]
+                m["y"] += m["vy"]
+                for x, y in pegs:
+                    dx, dy = m["x"] - x, m["y"] - y
+                    dist = math.hypot(dx, dy)
+                    if 0 < dist < mr + peg_r:
+                        nx, ny = dx / dist, dy / dist
+                        dot = m["vx"] * nx + m["vy"] * ny
+                        if dot < 0:
+                            m["vx"] = (m["vx"] - 1.7 * dot * nx) * 0.85 + rng.uniform(-0.3, 0.3)
+                            m["vy"] = (m["vy"] - 1.7 * dot * ny) * 0.85
+                        m["x"], m["y"] = x + nx * (mr + peg_r), y + ny * (mr + peg_r)
+                if m["x"] < mr or m["x"] > w - mr:
+                    m["vx"] *= -0.8
+                    m["x"] = min(max(m["x"], mr), w - mr)
+                if m["y"] >= floor:
+                    m["rest"], m["y"] = True, floor - rng.uniform(0, 3)
+            d.ellipse([m["x"] - mr, m["y"] - mr, m["x"] + mr, m["y"] + mr], fill=col(m["hue"]))
+        if len(marbles) >= 160 and all(m["rest"] for m in marbles[-20:]):
+            marbles = []  # board full -> start a new wave
+        frame = Image.blend(trail, trail.filter(ImageFilter.GaussianBlur(4)), 0.35)
+        proc.stdin.write(np.asarray(frame, dtype=np.uint8).tobytes())
+    proc.stdin.close()
+    proc.wait()
+    print("  background: generated marble-drop simulation")
+
+
 def pick_music():
     tracks = [p for p in (ROOT / "music").glob("*") if p.suffix.lower() in AUDIO_EXTS]
     return random.choice(tracks) if tracks else None
@@ -296,7 +384,8 @@ def render(story_text, hook, out_dir, W, H, voice, rate, seed=None):
         clip, start = pick_gameplay(dur)
         if clip is None:
             bg = td / "bg.mp4"
-            render_balls(dur, W, H, bg, seed=seed)
+            sim = random.choice([render_balls, render_plinko])
+            sim(dur, W, H, bg, seed=seed)
             bg_input = ["-i", str(bg)]
         else:
             bg_input = ["-ss", f"{start:.2f}", "-i", str(clip)]
@@ -386,7 +475,7 @@ def main():
         seed = sum(map(ord, story["id"]))
         random.seed(seed)
         video, dur = render(story["story"], story.get("hook", ""), out_dir, 1080, 1920,
-                            args.voice or story.get("voice") or DEFAULT_VOICE, args.rate, seed=seed)
+                            args.voice or voice_for(story), args.rate, seed=seed)
         write_upload_sheet(story, out_dir, dur)
         print(f"  done: {video}")
 

@@ -88,7 +88,19 @@ instead, at 3–5% volume.
 
 ---
 
-## 4. Daily routine (20–30 min/day)
+## 4. The automated weekly cycle
+
+| Who | What | When |
+|---|---|---|
+| Claude (scheduled task) | Writes 7 new original stories, checks them, pushes them to the repo | Every Friday evening |
+| GitHub Actions | Renders only the new stories with natural voices | Automatically, ~15 min after |
+| **You (~20 min)** | Download the `videos` zip → schedule all 7 in YouTube Studio, TikTok (desktop scheduler), Meta Business Suite (Instagram + Facebook) | Once a week |
+
+**Why you still press "schedule":** YouTube and TikTok lock videos uploaded by unapproved
+apps to *private*. Once the channel has real traction, we apply for API approval, and then
+uploading can be fully automatic too.
+
+## 4b. Daily routine
 
 | Time | Do |
 |---|---|

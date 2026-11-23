@@ -24,17 +24,34 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Install ffmpeg
         run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
+      - name: Pick stories to render
+        id: pick
+        run: |
+          if [ -n "${{ github.event.inputs.stories }}" ]; then
+            files="${{ github.event.inputs.stories }}"
+          else
+            # on push: only stories added/changed in this push (all of them if none changed)
+            before="${{ github.event.before }}"
+            if [ -n "$before" ] && git cat-file -e "$before" 2>/dev/null; then
+              files=$(git diff --name-only --diff-filter=AM "$before" "${{ github.sha }}" -- 'stories/*.json' | tr '\n' ' ')
+            fi
+            [ -z "$files" ] && files="stories/*.json"
+          fi
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          echo "Rendering: $files"
       - name: Render Shorts
-        run: python shortsmaker/make_short.py ${{ github.event.inputs.stories || 'stories/*.json' }}
+        run: python shortsmaker/make_short.py ${{ steps.pick.outputs.files }}
       - name: Render long compilation
         if: ${{ github.event.inputs.long == 'true' }}
-        run: python shortsmaker/make_short.py --long ${{ github.event.inputs.stories || 'stories/*.json' }}
+        run: python shortsmaker/make_short.py --long ${{ steps.pick.outputs.files }}
       - uses: actions/upload-artifact@v4
         with:
           name: videos
