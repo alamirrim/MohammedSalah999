@@ -131,7 +131,7 @@ def ass_escape(s):
 
 def build_ass(words, hook, W, H, hook_seconds, ass_path, words_per_chunk=3):
     """Big centred captions, 1-3 words at a time, current word in yellow with a pop."""
-    caption_size = int(W * 0.105)
+    caption_size = int(min(W, H) * 0.105) if H > W else int(H * 0.085)
     hook_size = int(W * 0.072)
     header = f"""[Script Info]
 ScriptType: v4.00+
@@ -209,7 +209,7 @@ def render_balls(duration, W, H, out_path, fps=30, seed=None):
 
     rng = random.Random(seed)
     w, h = W // 2, H // 2
-    cx, cy, R = w / 2, h * 0.52, w * 0.44
+    cx, cy, R = w / 2, h * 0.52, min(w, h) * 0.44
     hue0 = rng.random()
 
     def hsv(hh, s=0.85, v=1.0):
