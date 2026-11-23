@@ -31,7 +31,29 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt gdown==5.2.0
+      # Gameplay clips are too big for git: list Google Drive / direct links in
+      # backgrounds/sources.txt. They're downloaded once, then cached between runs.
+      - name: Restore gameplay cache
+        uses: actions/cache@v4
+        with:
+          path: backgrounds/downloaded
+          key: gameplay-${{ hashFiles('backgrounds/sources.txt') }}
+      - name: Download gameplay backgrounds
+        run: |
+          mkdir -p backgrounds/downloaded
+          n=0
+          grep -vE '^\s*(#|$)' backgrounds/sources.txt 2>/dev/null | cut -d'|' -f1 | while read -r url; do
+            url=$(echo "$url" | xargs)
+            n=$((n+1)); out="backgrounds/downloaded/clip$n.mp4"
+            [ -s "$out" ] && { echo "cached: $out"; continue; }
+            if echo "$url" | grep -q "drive.google.com"; then
+              gdown --fuzzy "$url" -O "$out" || echo "::warning::could not download $url"
+            else
+              curl -fL --retry 3 "$url" -o "$out" || echo "::warning::could not download $url"
+            fi
+          done
+          ls -la backgrounds/downloaded
       - name: Pick stories to render
         id: pick
         run: |

@@ -201,7 +201,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 # --------------------------------------------------------------------------- backgrounds
 def pick_gameplay(duration):
     folder = ROOT / "backgrounds"
-    clips = [p for p in folder.glob("*") if p.suffix.lower() in VIDEO_EXTS]
+    clips = [p for p in folder.rglob("*") if p.suffix.lower() in VIDEO_EXTS]
     random.shuffle(clips)
     for clip in clips:
         try:
@@ -381,7 +381,10 @@ def render(story_text, hook, out_dir, W, H, voice, rate, seed=None):
         hook_seconds = min(3.2, words[min(len(words) - 1, 12)][1] if words else 3)
         build_ass(words, hook, W, H, hook_seconds, ass)
 
-        clip, start = pick_gameplay(dur)
+        # mostly gameplay when you have it, sometimes a generated sim, for variety
+        clip, start = pick_gameplay(dur) if random.random() < 0.75 else (None, 0)
+        global LAST_BG
+        LAST_BG = clip
         if clip is None:
             bg = td / "bg.mp4"
             sim = random.choice([render_balls, render_plinko])
@@ -416,6 +419,22 @@ def render(story_text, hook, out_dir, W, H, voice, rate, seed=None):
     return video, dur
 
 
+LAST_BG = None
+
+
+def gameplay_credit():
+    """Credit text from backgrounds/sources.txt ('url | credit') when gameplay was used."""
+    if LAST_BG is None:
+        return ""
+    src = ROOT / "backgrounds" / "sources.txt"
+    credits = []
+    if src.exists():
+        for line in src.read_text().splitlines():
+            if "|" in line and not line.strip().startswith("#"):
+                credits.append(line.split("|", 1)[1].strip())
+    return ("Background gameplay: " + ", ".join(credits) + "\n") if credits else ""
+
+
 def write_upload_sheet(story, out_dir, dur):
     tags = story.get("tags", [])
     hashtags = " ".join("#" + re.sub(r"\W", "", t) for t in tags[:3])
@@ -429,6 +448,7 @@ DESCRIPTION:
 {hashtags}
 
 This story is fictional and was written for entertainment. Narration uses a synthetic (AI) voice.
+{gameplay_credit()}
 
 TAGS (YouTube Studio > Show more > Tags):
 {', '.join(tags)}
