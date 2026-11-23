@@ -50,7 +50,7 @@ def voice_for(story):
         if tags & genre_tags:
             return voice
     return DEFAULT_VOICE
-DEFAULT_RATE = "+12%"  # slightly fast narration keeps retention up
+DEFAULT_RATE = "+5%"  # a touch fast keeps retention up; 200-230 words ≈ 62-72s
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm"}
 AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".ogg"}
 

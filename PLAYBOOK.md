@@ -139,11 +139,11 @@ usually "No"; realistic fake footage of real-looking people or events is "Yes") 
 Copy any file in `stories/`, change the `id` (e.g. `013-...`), title, hook, story, tags.
 
 **Formula:** Hook (most shocking line) → context in 2 sentences → escalation → twist →
-one-line ending that loops or teases a part 2. **160–190 words** = 60–75 seconds.
+one-line ending that loops or teases a part 2. **200–230 words** = 62–72 seconds (over 60s so TikTok Creator Rewards counts it).
 
 **Prompt to give Claude (or any AI) for a batch, then edit what comes back:**
 > Write 7 original, fictional short stories for 60–75 second narrated YouTube Shorts.
-> 160–190 words each. First person, simple spoken English, short sentences. The first
+> 200–230 words each. First person, simple spoken English, short sentences. The first
 > sentence must be the most shocking part of the story. Each needs a twist ending nobody
 > sees coming, and the final line should loop back into the first line or tease a part 2.
 > Mix the genres: 2 wholesome, 2 creepy (no gore), 2 petty revenge/karma, 1 workplace.
