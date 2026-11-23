@@ -1,0 +1,42 @@
+name: Render videos
+
+# Runs on GitHub's servers (free). Renders every story in stories/ with the
+# real neural voice and gives you a zip of finished videos to download.
+on:
+  workflow_dispatch:
+    inputs:
+      stories:
+        description: "Which stories (glob). Example: stories/013-*.json"
+        default: "stories/*.json"
+      long:
+        description: "Also build a long 16:9 compilation of these stories?"
+        type: boolean
+        default: false
+  push:
+    paths:
+      - "stories/**"
+      - "shortsmaker/**"
+      - ".github/workflows/render.yml"
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ffmpeg
+        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Render Shorts
+        run: python shortsmaker/make_short.py ${{ github.event.inputs.stories || 'stories/*.json' }}
+      - name: Render long compilation
+        if: ${{ github.event.inputs.long == 'true' }}
+        run: python shortsmaker/make_short.py --long ${{ github.event.inputs.stories || 'stories/*.json' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: videos
+          path: out/
+          retention-days: 30
